@@ -192,14 +192,17 @@ export class AmazonKendraRetriever extends BaseRetriever {
    */
   getRetrieverDocs(
     response: RetrieveCommandOutput,
-    pageSize: number
+    pageSize: number,
+    queryId?: string
   ): Document[] {
     if (!response.ResultItems) return [];
     const { length } = response.ResultItems;
     const count = length < pageSize ? length : pageSize;
 
-    return response.ResultItems.slice(0, count).map((item) =>
+    return response.ResultItems.slice(0, count).map((item) => {
+      const resultId = item.Id;
       this.convertRetrieverItem(item)
+    }
     );
   }
 
@@ -238,7 +241,7 @@ export class AmazonKendraRetriever extends BaseRetriever {
    * @param item The QueryResultItem object to convert.
    * @returns A Document object.
    */
-  convertQueryItem(item: QueryResultItem) {
+  convertQueryItem(item: QueryResultItem, queryId?: string, resultId?: string) {
     const title = item.DocumentTitle?.Text || "";
     const excerpt = this.getQueryItemExcerpt(item);
     const pageContent = this.combineText(title, excerpt);
@@ -251,7 +254,7 @@ export class AmazonKendraRetriever extends BaseRetriever {
       document_attributes: attributes,
     };
 
-    return new Document({ pageContent, metadata });
+    return new Document({ pageContent, metadata, queryId, resultId });
   }
 
   // A method to extract the top-k documents from a QueryCommandOutput object.
@@ -261,12 +264,14 @@ export class AmazonKendraRetriever extends BaseRetriever {
    * @param pageSize The number of documents to extract.
    * @returns An array of Document objects.
    */
-  getQueryDocs(response: QueryCommandOutput, pageSize: number) {
+  getQueryDocs(response: QueryCommandOutput, pageSize: number, queryId?: string) {
     if (!response.ResultItems) return [];
     const { length } = response.ResultItems;
     const count = length < pageSize ? length : pageSize;
-    return response.ResultItems.slice(0, count).map((item) =>
-      this.convertQueryItem(item)
+    return response.ResultItems.slice(0, count).map((item) => {
+      const resultId = item.Id;
+      this.convertQueryItem(item, queryId, resultId)
+    }
     );
   }
 
@@ -293,7 +298,7 @@ export class AmazonKendraRetriever extends BaseRetriever {
 
     const retrieveResponse = await this.kendraClient.send(retrieveCommand);
     const retriveLength = retrieveResponse.ResultItems?.length;
-
+    let queryId = null;
     if (retriveLength === 0) {
       // Retrieve API returned 0 results, call query API
       const queryCommand = new QueryCommand({
@@ -302,11 +307,12 @@ export class AmazonKendraRetriever extends BaseRetriever {
         PageSize: topK,
         AttributeFilter: attributeFilter,
       });
-
       const queryResponse = await this.kendraClient.send(queryCommand);
-      return this.getQueryDocs(queryResponse, this.topK);
+      queryId = queryResponse.QueryId;
+      return this.getQueryDocs(queryResponse, this.topK, queryId);
     } else {
-      return this.getRetrieverDocs(retrieveResponse, this.topK);
+      queryId = retrieveResponse.QueryId;
+      return this.getRetrieverDocs(retrieveResponse, this.topK, queryId);
     }
   }
 

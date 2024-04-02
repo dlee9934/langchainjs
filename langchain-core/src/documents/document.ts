@@ -5,6 +5,8 @@ export interface DocumentInput<
   pageContent: string;
 
   metadata?: Metadata;
+  queryId?: string;
+  resultId?: string;
 }
 
 export interface DocumentInterface<
@@ -14,6 +16,8 @@ export interface DocumentInterface<
   pageContent: string;
 
   metadata: Metadata;
+  queryId?: string;
+  resultId?: string;
 }
 
 /**
@@ -27,11 +31,14 @@ export class Document<
   pageContent: string;
 
   metadata: Metadata;
-
+  queryId?: string;
+  resultId?: string;
   constructor(fields: DocumentInput<Metadata>) {
     this.pageContent = fields.pageContent
       ? fields.pageContent.toString()
       : this.pageContent;
     this.metadata = fields.metadata ?? ({} as Metadata);
+    this.queryId = fields.queryId;
+    this.resultId = fields.resultId;
   }
 }
