@@ -167,7 +167,11 @@ export class AmazonKendraRetriever extends BaseRetriever {
    * @param item The RetrieveResultItem object to convert.
    * @returns A Document object.
    */
-  convertRetrieverItem(item: RetrieveResultItem) {
+  convertRetrieverItem(
+    item: RetrieveResultItem,
+    queryId?: string,
+    resultId?: string
+  ) {
     const title = item.DocumentTitle || "";
     const excerpt = item.Content ? this.cleanResult(item.Content) : "";
     const pageContent = this.combineText(title, excerpt);
@@ -180,7 +184,7 @@ export class AmazonKendraRetriever extends BaseRetriever {
       document_attributes: attributes,
     };
 
-    return new Document({ pageContent, metadata });
+    return new Document({ pageContent, metadata, queryId, resultId });
   }
 
   // A method to extract the top-k documents from a RetrieveCommandOutput object.
@@ -201,9 +205,8 @@ export class AmazonKendraRetriever extends BaseRetriever {
 
     return response.ResultItems.slice(0, count).map((item) => {
       const resultId = item.Id;
-      this.convertRetrieverItem(item)
-    }
-    );
+      return this.convertRetrieverItem(item, queryId, resultId);
+    });
   }
 
   // A method to extract the excerpt text from a QueryResultItem object.
@@ -264,15 +267,18 @@ export class AmazonKendraRetriever extends BaseRetriever {
    * @param pageSize The number of documents to extract.
    * @returns An array of Document objects.
    */
-  getQueryDocs(response: QueryCommandOutput, pageSize: number, queryId?: string) {
+  getQueryDocs(
+    response: QueryCommandOutput,
+    pageSize: number,
+    queryId?: string
+  ) {
     if (!response.ResultItems) return [];
     const { length } = response.ResultItems;
     const count = length < pageSize ? length : pageSize;
     return response.ResultItems.slice(0, count).map((item) => {
       const resultId = item.Id;
-      this.convertQueryItem(item, queryId, resultId)
-    }
-    );
+      return this.convertQueryItem(item, queryId, resultId);
+    });
   }
 
   // A method to send a retrieve or query request to Kendra and return the top-k documents.
